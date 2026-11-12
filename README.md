@@ -19,7 +19,7 @@ uv run wfx_scan.py --json findings.json   # also write machine-readable output
 
 Without `--all`, a repo is only deep scanned if it has been pushed since the campaign started, or if its owner is listed with `--always` (default: `k8up-io`). Every branch push, revert and branch deletion updates `pushed_at`, so a repo the attacker touched cannot sit below that cutoff. A search-API sweep for the probe PR title runs across all owners regardless.
 
-The exit code is 1 if any HIGH finding exists and 0 otherwise.
+The exit code is 1 if any HIGH finding exists and 0 otherwise. WARN findings (`run-gap`, branch names that only match a pattern, `toJSON(secrets)`, the October wave's file names) and "Checks that could not run" still exit 0. If you schedule the scan and alert only on a failed job, you will miss them, so read the report as well.
 
 ## What it checks
 
@@ -29,7 +29,7 @@ The exit code is 1 if any HIGH finding exists and 0 otherwise.
 | `branch`, `event-branch`, `event-push` | Branch `wfx-docs` (HIGH); `chore/[a-z0-9]{8}`, `ci-check-[0-9]{4}` (WARN when only the branch exists) | HIGH/WARN |
 | `commit`, `event-commit` | Commit messages `ci: refresh build cache`, `ci: restore`, `chore: add ci helper`, `ci: cleanup`, `chore: add dependency audit workflow` since 2026-11-10 | HIGH |
 | `run` | Workflow runs since 2026-11-10 on a suspicious branch, with a matching title, or from `build-audit-*` | HIGH |
-| `run-gap` | Missing run numbers per workflow since 2026-11-10 (deleted runs). Aikido calls this the strongest remaining trace, but maintainers delete runs too | WARN |
+| `run-gap` | Missing run numbers per workflow since 2026-11-10 (deleted runs). Aikido calls this the strongest remaining trace; see Limits for what it cannot see | WARN |
 | `artifact`, `cache` | Artifacts or Actions caches named `wfx*` (e.g. `wfx-loot-<run id>`) | HIGH |
 | `file` | `.github/workflows/build-audit-*.yml`, `.ci-*.sh` (HIGH); October wave names `security-audit.yml`, `audit.yml`, `ci-check.yml`, `public/fonts/fa-solid-400.woff2` (WARN) | HIGH/WARN |
 | `content` | Workflows, `.ci-*.sh`, `package.json`, `.vscode/tasks.json` containing the exfil IPs `194.150.166.244`, `18.143.168.96`, `193.32.204.199`, `WF_CALLBACK`, `WF_CTOKEN`, `<!--WFX-BEGIN-->`, `wfx-loot`, `Restore cache j632`, `#ghc2`, or the stealer SHA256; `toJSON(secrets)` is WARN | HIGH/WARN |
@@ -43,7 +43,9 @@ Content and file checks run against the default branch and any suspicious branch
 
 - The repository events API returns at most 300 events from the last 90 days, so busy repos may have dropped the relevant ones.
 - Since August 2025, GitHub has been dropping commit lists from `PushEvent` payloads, so the scanner reads commit messages from the commits API, which covers the default branch and surviving suspicious branches only. A commit on a deleted branch shows up only through its events or workflow runs.
-- Cloud-side persistence is not checked: AWS roles with `"Principal": {"AWS": "*"}` trust, IAM access keys created by the campaign, Azure federated identity credentials named `wfx-ci-*`, and forged `success` commit statuses. Check those in the cloud consoles.
+- `run-gap` compares the run numbers of a workflow's surviving runs, so it sees a deleted run only once a later run of the same workflow survives. It cannot see a deleted latest run until the workflow runs again, or a workflow whose runs were all deleted. Runs deleted by maintainers show up as false positives.
+- Cloud-side persistence is not checked: AWS roles with `"Principal": {"AWS": "*"}` trust, IAM access keys created by the campaign, and Azure federated identity credentials named `wfx-ci-*`. Check those in the cloud consoles.
+- Forged commit statuses are not checked either. Look for them in GitHub: `success` statuses on required-check contexts that your CI never posted.
 - Any check that failed (for example 404 on Actions for a repo without it) is listed under "Checks that could not run". Treat those repos as unverified, not clean.
 
 ## If something is found
