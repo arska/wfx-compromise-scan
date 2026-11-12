@@ -1,0 +1,5 @@
+# scan output: names private repos and findings
+*.json
+*.txt
+*.err
+__pycache__/
