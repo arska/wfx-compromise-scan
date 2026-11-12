@@ -1,0 +1,1 @@
+# gh-compromise-scan
