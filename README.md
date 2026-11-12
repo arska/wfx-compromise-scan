@@ -1,4 +1,4 @@
-# gh-compromise-scan
+# wfx-compromise-scan
 
 Scans the GitHub repositories you can access for indicators of the November 2026 "wfx" CI secret stealer. Compromised accounts pushed it to tens of thousands of repositories, as described in Aikido's write-up:
 <https://www.aikido.dev/blog/compromised-github-accounts-push-ci-secret-stealer-to-tens-of-thousands-of-repositories>
